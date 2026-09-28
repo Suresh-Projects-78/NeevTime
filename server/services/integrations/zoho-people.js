@@ -22,6 +22,9 @@ const httpsAgent = new https.Agent({
 });
 
 class ZohoPeopleIntegration extends BaseIntegration {
+    // What this adapter implements; the engine reads this, the UI shows it.
+    static capabilities = ['pull_employees', 'push_attendance'];
+
     constructor(config) {
         super(config);
         this.refreshToken = config.config?.refresh_token;

@@ -22,6 +22,9 @@ const httpsAgent = new https.Agent({
 });
 
 class OdooIntegration extends BaseIntegration {
+    // What this adapter implements; the engine reads this, the UI shows it.
+    static capabilities = ['pull_employees', 'push_attendance'];
+
     constructor(config) {
         super(config);
         this.database = config.database_name || config.config?.database;

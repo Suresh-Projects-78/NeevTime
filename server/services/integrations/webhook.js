@@ -29,6 +29,9 @@ const httpsAgent = new https.Agent({
 });
 
 class WebhookIntegration extends BaseIntegration {
+    // What this adapter implements; the engine reads this, the UI shows it.
+    static capabilities = ['pull_employees', 'push_attendance', 'push_leave'];
+
     constructor(config) {
         super(config);
 
