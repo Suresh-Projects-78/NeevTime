@@ -98,6 +98,16 @@ const ADAPTERS = [
         icon: '🟢', color: '#E42527',
     },
     {
+        type: 'generic_rest',
+        name: 'Generic REST API',
+        description: 'Config-driven adapter for any REST HRMS: set auth, endpoint paths and a field map — no new code.',
+        load: () => require('./generic-rest'),
+        aliases: ['rest'],
+        required_fields: ['base_url'],
+        config_fields: ['auth', 'endpoints', 'fieldMap'],
+        icon: '🔌', color: '#334155',
+    },
+    {
         type: 'webhook',
         name: 'Generic Webhook / API',
         description: 'Any system that can post JSON. The way to connect a vendor with a closed API.',
