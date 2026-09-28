@@ -50,7 +50,8 @@ const INTEGRATION_TYPE = {
     SAP: 'sap_successfactors',
     WORKDAY: 'workday',
     BAMBOOHR: 'bamboohr',
-    ZOHO: 'zoho_people'
+    ZOHO: 'zoho_people',
+    GREYTHR: 'greythr'
 };
 
 /**
@@ -67,7 +68,12 @@ class BaseIntegration {
         this.apiSecret = config.api_secret;
         this.username = config.username;
         this.password = config.password;
-        this.config = config.config || {};
+        // config is jsonb; tolerate a legacy double-encoded string just in case
+        let cfg = config.config || {};
+        if (typeof cfg === 'string') {
+            try { cfg = JSON.parse(cfg); } catch (e) { cfg = {}; }
+        }
+        this.config = cfg;
         this.fieldMappings = {};
     }
 
@@ -259,6 +265,11 @@ const getIntegrationInstance = async (integrationId) => {
                     const WebhookIntegration = require('./integrations/webhook');
                     instance = new WebhookIntegration(config);
                     break;
+                case INTEGRATION_TYPE.GREYTHR:
+                case 'greythr':
+                    const GreytHRIntegration = require('./integrations/greythr');
+                    instance = new GreytHRIntegration(config);
+                    break;
                 case INTEGRATION_TYPE.SAP:
                 case 'sap_successfactors':
                     const SAPIntegration = require('./integrations/sap-successfactors');
@@ -372,9 +383,12 @@ const syncAttendanceToHRMS = async (integration) => {
                 e.name as employee_name,
                 e.email
             FROM attendance_logs al
-            LEFT JOIN employees e ON al.employee_code = e.employee_code
+            JOIN employees e ON al.employee_code = e.employee_code
             WHERE (al.sync_status IS NULL OR al.sync_status != 'synced')
             AND al.punch_time > NOW() - INTERVAL '7 days'
+              -- never push door-only / excluded / deleted staff (e.g. gate guard) to HRMS
+              AND COALESCE(e.exclude_from_hrms, false) = false
+              AND e.deleted_at IS NULL
             ORDER BY al.punch_time
             LIMIT 500
         `);
