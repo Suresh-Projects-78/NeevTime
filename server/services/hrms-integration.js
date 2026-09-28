@@ -18,6 +18,7 @@
 
 const db = require('../db');
 const fs = require('fs');
+const registry = require('./integrations/registry');
 
 // Logger
 const log = (level, msg, data = {}) => {
@@ -53,6 +54,28 @@ const INTEGRATION_TYPE = {
     ZOHO: 'zoho_people',
     GREYTHR: 'greythr'
 };
+
+// Capability — what an adapter genuinely implements. An adapter declares
+// `static capabilities = [...]`; the engine reads the declaration off the class
+// (via the registry) rather than special-casing vendors, and the UI hides
+// methods a vendor does not support instead of showing a button that fails.
+const CAPABILITY = {
+    EMPLOYEES: 'employees',            // pull employees from the HRMS
+    SHIFTS: 'shifts',
+    HOLIDAYS: 'holidays',
+    LEAVE: 'leave',
+    PUSH_ATTENDANCE: 'push_attendance',        // raw punches
+    PUSH_DAILY_ATTENDANCE: 'push_daily_attendance', // computed daily records
+    PUSH_LEAVE: 'push_leave',
+    PULL_EMPLOYEES: 'pull_employees',
+    PULL_LEAVE: 'pull_leave',
+    PULL_SHIFTS: 'pull_shifts',
+};
+
+/** True if an adapter instance's class declares a capability. */
+const supports = (instance, capability) =>
+    Array.isArray(instance?.constructor?.capabilities) &&
+    instance.constructor.capabilities.includes(capability);
 
 /**
  * Base Integration Class
@@ -242,57 +265,15 @@ const getIntegrationInstance = async (integrationId) => {
         let instance;
 
         try {
-            switch (config.type) {
-                case INTEGRATION_TYPE.ERPNEXT:
-                case 'erpnext':
-                    const ERPNextIntegration = require('./integrations/erpnext');
-                    instance = new ERPNextIntegration(config);
-                    break;
-                case INTEGRATION_TYPE.ODOO:
-                case 'odoo':
-                    const OdooIntegration = require('./integrations/odoo');
-                    instance = new OdooIntegration(config);
-                    break;
-                case INTEGRATION_TYPE.HORILLA:
-                case 'horilla':
-                    const HorillaIntegration = require('./integrations/horilla');
-                    instance = new HorillaIntegration(config);
-                    break;
-                case INTEGRATION_TYPE.WEBHOOK:
-                case INTEGRATION_TYPE.CUSTOM_API:
-                case 'webhook':
-                case 'custom_api':
-                    const WebhookIntegration = require('./integrations/webhook');
-                    instance = new WebhookIntegration(config);
-                    break;
-                case INTEGRATION_TYPE.GREYTHR:
-                case 'greythr':
-                    const GreytHRIntegration = require('./integrations/greythr');
-                    instance = new GreytHRIntegration(config);
-                    break;
-                case INTEGRATION_TYPE.SAP:
-                case 'sap_successfactors':
-                    const SAPIntegration = require('./integrations/sap-successfactors');
-                    instance = new SAPIntegration(config);
-                    break;
-                case INTEGRATION_TYPE.WORKDAY:
-                case 'workday':
-                    const WorkdayIntegration = require('./integrations/workday');
-                    instance = new WorkdayIntegration(config);
-                    break;
-                case INTEGRATION_TYPE.BAMBOOHR:
-                case 'bamboohr':
-                    const BambooHRIntegration = require('./integrations/bamboohr');
-                    instance = new BambooHRIntegration(config);
-                    break;
-                case INTEGRATION_TYPE.ZOHO:
-                case 'zoho_people':
-                    const ZohoPeopleIntegration = require('./integrations/zoho-people');
-                    instance = new ZohoPeopleIntegration(config);
-                    break;
-                default:
-                    throw new Error(`Unknown integration type: ${config.type}`);
+            // One lookup against the registry, which is the single source of
+            // truth for every adapter (see ./integrations/registry.js). Adding a
+            // service is one registry entry, not a new switch case here.
+            const entry = registry.find(config.type);
+            if (!entry) {
+                throw new Error(`Unknown integration type: ${config.type}. Known types: ${registry.list().map(a => a.type).join(', ')}`);
             }
+            const Adapter = entry.load();
+            instance = new Adapter(config);
         } catch (err) {
             log('ERROR', 'Failed to instantiate integration', {
                 type: config.type,
@@ -472,6 +453,9 @@ module.exports = {
     SYNC_DIRECTION,
     SYNC_TYPE,
     INTEGRATION_TYPE,
+    CAPABILITY,
+    supports,
+    registry,
     BaseIntegration,
     getIntegrationInstance,
     getActiveIntegrations,

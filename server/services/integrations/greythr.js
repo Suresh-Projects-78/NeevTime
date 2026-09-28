@@ -21,6 +21,9 @@ const { formatLocal, decodeDirection, resolveDeviceDirections } = require('./pun
 const db = require('../../db');
 
 class GreytHRIntegration extends BaseIntegration {
+    // Raw swipe push only — greytHR derives attendance/payroll itself.
+    static capabilities = ['push_attendance'];
+
     constructor(config) {
         super(config);
         const c = this.config || {};
