@@ -333,14 +333,24 @@ const runScheduledSync = async () => {
             try {
                 const instance = await getIntegrationInstance(integration.id);
 
-                // Push attendance if enabled
+                // Push attendance if enabled AND the adapter declares it. A
+                // push-only or pull-only vendor must not have a method it never
+                // implemented called on it — skip with a note instead of crashing.
                 if (integration.sync_attendance) {
-                    await syncAttendanceToHRMS(instance);
+                    if (supports(instance, CAPABILITY.PUSH_ATTENDANCE)) {
+                        await syncAttendanceToHRMS(instance);
+                    } else {
+                        log('INFO', 'Skip attendance push: adapter does not support push_attendance', { integration: integration.name });
+                    }
                 }
 
-                // Pull employees if enabled
+                // Pull employees if enabled AND supported.
                 if (integration.sync_employees) {
-                    await syncEmployeesFromHRMS(instance);
+                    if (supports(instance, CAPABILITY.PULL_EMPLOYEES)) {
+                        await syncEmployeesFromHRMS(instance);
+                    } else {
+                        log('INFO', 'Skip employee pull: adapter does not support pull_employees', { integration: integration.name });
+                    }
                 }
 
             } catch (err) {

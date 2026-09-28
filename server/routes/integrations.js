@@ -190,6 +190,9 @@ router.post('/integrations/:id/test', async (req, res) => {
 router.post('/integrations/:id/sync/employees', async (req, res) => {
     try {
         const integration = await hrmsIntegration.getIntegrationInstance(req.params.id);
+        if (!hrmsIntegration.supports(integration, hrmsIntegration.CAPABILITY.PULL_EMPLOYEES)) {
+            return res.status(400).json({ success: false, error: 'This integration does not support pulling employees.' });
+        }
         const stats = await hrmsIntegration.syncEmployeesFromHRMS(integration);
         res.json({ success: true, stats });
     } catch (err) {
@@ -201,6 +204,9 @@ router.post('/integrations/:id/sync/employees', async (req, res) => {
 router.post('/integrations/:id/sync/attendance', async (req, res) => {
     try {
         const integration = await hrmsIntegration.getIntegrationInstance(req.params.id);
+        if (!hrmsIntegration.supports(integration, hrmsIntegration.CAPABILITY.PUSH_ATTENDANCE)) {
+            return res.status(400).json({ success: false, error: 'This integration does not support pushing attendance.' });
+        }
         const stats = await hrmsIntegration.syncAttendanceToHRMS(integration);
         res.json({ success: true, stats });
     } catch (err) {
